@@ -57,33 +57,24 @@ class MultinomialPredictor:
         split: str, 
         output_dir: str,
         max_samples: Optional[int] = None,
-        format: str = "json"
+        format: str = "json",
+        shot_type: str = "zero_shot"
     ) -> Path:
-        """
-        Genera predicciones y las guarda.
-        
-        Args:
-            split: 'train', 'dev', o 'test'
-            output_dir: Directorio donde guardar el archivo
-            max_samples: Límite de muestras (para testing)
-            format: 'json' o 'parquet'
-            
-        Returns:
-            Path del archivo guardado
-        """
         results_df = self.predict_split(split, max_samples)
         
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{self.model.model_name}_{split}_{timestamp}"
+        model_name_clean = self.model.model_name.replace("/", "_")
+        filename = f"{model_name_clean}_{shot_type}_{split}_{timestamp}"
         
         if format == "json":
             filepath = output_path / f"{filename}.json"
             output_data = {
                 "model": self.model.model_name,
                 "split": split,
+                "shot_type": shot_type,
                 "timestamp": timestamp,
                 "num_samples": len(results_df),
                 "results": results_df.to_dict(orient="records")
