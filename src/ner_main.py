@@ -40,7 +40,7 @@ def get_few_shot_examples(
     n_examples: int
 ) -> List[Dict]:
     """
-    Get few-shot examples from train set.
+    Get balanced few-shot examples from train set - at least one per entity type.
     
     Returns examples in format: [{"text": ..., "entities": [...]}, ...]
     """
@@ -50,23 +50,37 @@ def get_few_shot_examples(
     sentences = dataset.get_text_sentences("train")
     tokens_list, tags_list = dataset.get_sentences_and_labels("train")
     
-    # Convertir a formato de entidades
-    examples = []
+    # Agrupar por tipo de entidad
+    examples_by_type = {etype: [] for etype in dataset.entity_types}
+    
     for sent, tokens, tags in zip(sentences, tokens_list, tags_list):
         entities = bio_to_entities(tokens, tags)
-        # Solo incluir ejemplos con entidades
         if entities:
-            examples.append({
-                "text": sent,
-                "entities": entities
-            })
+            # Clasificar por tipos presentes
+            types_in_sent = set(e['type'] for e in entities)
+            for etype in types_in_sent:
+                examples_by_type[etype].append({"text": sent, "entities": entities})
     
-    # Seleccionar ejemplos aleatorios
+    # Seleccionar balanceado - al menos uno por tipo
+    selected = []
+    examples_per_type = max(1, n_examples // len(dataset.entity_types))
+    
     random.seed(42)
-    if len(examples) > n_examples:
-        examples = random.sample(examples, n_examples)
+    for etype, examples in examples_by_type.items():
+        if examples:
+            sampled = random.sample(examples, min(examples_per_type, len(examples)))
+            selected.extend(sampled)
     
-    return examples[:n_examples]
+    # Eliminar duplicados y limitar
+    seen = set()
+    unique = []
+    for ex in selected:
+        if ex['text'] not in seen:
+            seen.add(ex['text'])
+            unique.append(ex)
+    
+    random.shuffle(unique)
+    return unique[:n_examples]
 
 
 def bio_to_entities(tokens: List[str], tags: List[str]) -> List[Dict[str, str]]:
@@ -146,9 +160,15 @@ def main():
     # Get few-shot examples if needed
     few_shot_examples = None
     if args.few_shot > 0:
-        print(f"\n[2.5/4] Getting {args.few_shot} few-shot examples...")
+        print(f"\n[2.5/4] Getting {args.few_shot} balanced few-shot examples...")
         few_shot_examples = get_few_shot_examples(dataset, args.few_shot)
-        print(f"  Got {len(few_shot_examples)} examples")
+        print(f"  Got {len(few_shot_examples)} examples covering entity types:")
+        # Show which types are covered
+        types_covered = set()
+        for ex in few_shot_examples:
+            for ent in ex['entities']:
+                types_covered.add(ent['type'])
+        print(f"  Types: {sorted(types_covered)}")
     
     # Create prompt template
     print("\n[3/4] Creating prompt template...")
