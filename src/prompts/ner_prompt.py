@@ -223,15 +223,18 @@ Text with marked entities:"""
                 valid_entities = []
                 for ent in entities:
                     if isinstance(ent, dict) and 'text' in ent and 'type' in ent:
+                        # Skip if text or type is None
+                        if ent['text'] is None or ent['type'] is None:
+                            continue
                         # Normalize entity type
-                        ent_type = ent['type'].lower().replace(' ', '_')
+                        ent_type = str(ent['type']).lower().replace(' ', '_')
                         if ent_type in self.entity_types:
                             valid_entities.append({
-                                'text': ent['text'],
+                                'text': str(ent['text']),
                                 'type': ent_type
                             })
                 return valid_entities
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError, TypeError):
             pass
         
         return []
