@@ -26,13 +26,16 @@ def get_llm(model_name: str, provider: str):
     if provider == "openai":
         from models.openai_llm import OpenAILLM
         return OpenAILLM(model_name=model_name)
+    elif provider == "azure":
+        from models.openai_llm import AzureOpenAILLM
+        return AzureOpenAILLM(model_name=model_name)
     elif provider == "huggingface":
         from models.huggingface_llm import HuggingFaceLLM
         if "GPTQ" in model_name or "gptq" in model_name:
             return HuggingFaceLLM(model_name=model_name, load_in_4bit=False)
         return HuggingFaceLLM(model_name=model_name, load_in_4bit=True)
     else:
-        raise ValueError(f"Provider '{provider}' not supported")
+        raise ValueError(f"Provider '{provider}' not supported. Use 'openai', 'azure', or 'huggingface'")
 
 
 def get_few_shot_examples(
@@ -123,8 +126,8 @@ def main():
     parser.add_argument("--model", type=str, default="gpt-4o-mini",
                         help="Model name")
     parser.add_argument("--provider", type=str, default="openai",
-                        choices=["openai", "huggingface"],
-                        help="Model provider")
+                        choices=["openai", "azure", "huggingface"],
+                        help="Model provider (openai=direct API, azure=Azure OpenAI)")
     parser.add_argument("--data-dir", type=str, default="data/ner_econ_ie",
                         help="Path to dataset directory")
     parser.add_argument("--output-dir", type=str, default="results/ner",
@@ -150,7 +153,7 @@ def main():
     print(dataset)
     
     # Create LLM
-    print(f"\n[2/4] Loading LLM ({args.provider})...")
+    print(f"\n[2/4] Loading LLM ({args.provider}: {args.model})...")
     llm = get_llm(args.model, args.provider)
     print(llm)
     
